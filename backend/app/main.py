@@ -1,13 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import router  # existing API router
-from .test_db_router import router as test_db_router  # <-- import new router
-from .routers import router as auth_router  # import the router from routers.py
-from .routers import router as admin_router  # import the router from routers.py    
 
+# Correct imports of routers
+from .routers import router as auth_router
+from .routers import admin_router
+from .test_db_router import router as test_db_router
+
+from .database import engine
+from .models import Base
 
 app = FastAPI()
-
 
 # CORS settings
 app.add_middleware(
@@ -18,23 +20,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# include routers
-from .routers import router as auth_router  # /auth routes
-from .routers import admin_router           # /admin routes
+# Include routers
+app.include_router(auth_router)       # /auth routes
+app.include_router(admin_router)      # /admin routes
+app.include_router(test_db_router)    # /test-db routes
 
-
-# Include auth routes
-app.include_router(auth_router)  # auth routes with /auth prefix already set in router
-
-# Include admin routes
-app.include_router(admin_router)
-app.include_router(router)  # existing routes
-app.include_router(test_db_router)  # new test-db route
-  # admin routes with /admin prefix
-# startup event to create tables
-from .database import engine
-from .models import Base
-
+# Startup event to create tables
 @app.on_event("startup")
 async def on_startup():
     async with engine.begin() as conn:
