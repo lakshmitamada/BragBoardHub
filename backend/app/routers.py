@@ -5,16 +5,14 @@ from datetime import timedelta
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from typing import List
-import secrets
 
 from .auth import get_current_admin_user, get_password_hash, authenticate_user, create_access_token, create_refresh_token, oauth2_scheme, settings
 from . import crud, schemas
 from .database import get_db
 from .models import User, SecurityKey
 
-# Routers
-router = APIRouter(prefix="/auth", tags=["Auth"])
-admin_router = APIRouter(prefix="/admin", tags=["Admin"])
+router = APIRouter(tags=["Auth"])
+admin_router = APIRouter(tags=["Admin"])
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -26,15 +24,15 @@ async def register_user(user: schemas.UserCreate, db: AsyncSession = Depends(get
     if await crud.get_user_by_username(db, user.username):
         raise HTTPException(status_code=400, detail="Username already taken")
 
-    # Admin registration requires security key
+    # Admin security key check
     if user.role == "admin":
         if not user.security_key:
-            raise HTTPException(status_code=403, detail="Security key is required for admin registration")
+            raise HTTPException(status_code=403, detail="Security key required")
         q = select(SecurityKey).where(SecurityKey.key == user.security_key, SecurityKey.is_used == False)
         res = await db.execute(q)
         key_obj = res.scalars().first()
         if not key_obj:
-            raise HTTPException(status_code=403, detail="Invalid or already used security key")
+            raise HTTPException(status_code=403, detail="Invalid or used key")
         key_obj.is_used = True
         await db.commit()
 
@@ -70,7 +68,7 @@ async def login_user(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        max_age=60 * 60 * 24 * settings.REFRESH_TOKEN_EXPIRE_DAYS,
+        max_age=60*60*24*settings.REFRESH_TOKEN_EXPIRE_DAYS,
         samesite="lax",
         secure=False
     )
@@ -96,44 +94,39 @@ async def me(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get
 
 # ---------------- ADMIN ROUTES ----------------
 @admin_router.get("/employees", response_model=List[schemas.UserOut])
-async def list_employees(
-    current_admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
-):
+async def list_employees(current_admin: User = Depends(get_current_admin_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.role == "employee"))
-    employees = result.scalars().all()
-    return employees
+    return result.scalars().all()
 
 @admin_router.delete("/employees/{emp_id}")
-async def delete_employee(
-    emp_id: int,
-    current_admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
-):
+async def delete_employee(emp_id: int, current_admin: User = Depends(get_current_admin_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.id == emp_id, User.role == "employee"))
     employee = result.scalars().first()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
-    
     await db.delete(employee)
     await db.commit()
-    return {"msg": "Employee deleted successfully"}
+    return {"msg": "Employee deleted"}
 
-# ---------------- SECURITY KEYS (admin only) ----------------
-def generate_security_key(length=16) -> str:
-    return secrets.token_urlsafe(length)
+@admin_router.patch("/employees/{emp_id}/suspend")
+async def suspend_employee(emp_id: int, suspend: bool, current_admin: User = Depends(get_current_admin_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.id == emp_id, User.role == "employee"))
+    employee = result.scalars().first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    employee.is_active = not suspend
+    db.add(employee)
+    await db.commit()
+    await db.refresh(employee)
+    return {"msg": f"Employee {'suspended' if suspend else 'activated'} successfully"}
 
+# ---------------- SECURITY KEY ROUTES ----------------
 @router.post("/security-keys", dependencies=[Depends(get_current_admin_user)])
 async def create_security_key(db: AsyncSession = Depends(get_db)):
-    key_value = generate_security_key(16)
+    import secrets
+    key_value = secrets.token_urlsafe(16)
     new_key = SecurityKey(key=key_value)
     db.add(new_key)
     await db.commit()
     await db.refresh(new_key)
     return {"security_key": new_key.key, "id": new_key.id}
-
-@router.get("/security-keys", dependencies=[Depends(get_current_admin_user)])
-async def list_security_keys(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(SecurityKey))
-    keys = result.scalars().all()
-    return [{"id": k.id, "key": k.key, "is_used": k.is_used} for k in keys]
