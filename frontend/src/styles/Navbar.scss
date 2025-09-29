@@ -1,0 +1,104 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: linear-gradient(90deg, #0077ff, #005fcc);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  flex-wrap: wrap; // ensures navbar items wrap on smaller screens
+
+  .nav-logo {
+    font-size: 1.7rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: transform 0.3s ease, color 0.3s ease;
+
+    &:hover {
+      transform: scale(1.05);
+      color: #ffd700;
+    }
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+    flex-wrap: wrap; // prevents overflow on smaller screens
+
+    li {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+
+      a {
+        color: #fff;
+        text-decoration: none;
+        font-weight: 500;
+        position: relative;
+        padding: 6px 10px;
+        transition: all 0.3s ease;
+
+        &::after {
+          content: "";
+          position: absolute;
+          left: 0;
+          bottom: -4px;
+          width: 0%;
+          height: 2px;
+          background: #ffd700;
+          transition: width 0.3s ease;
+        }
+
+        &:hover {
+          color: #ffd700;
+          transform: translateY(-2px);
+        }
+
+        &:hover::after {
+          width: 100%;
+        }
+      }
+    }
+  }
+
+  // Logout button outside ul for better alignment
+  .logout-btn {
+    background: #ff4d4d;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 15px;
+
+    &:hover {
+      background: #e60000;
+      transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  // Responsive adjustments
+  @media (max-width: 768px) {
+    justify-content: center;
+    gap: 10px;
+
+    .nav-links {
+      gap: 10px;
+    }
+
+    .logout-btn {
+      margin-left: 0;
+      margin-top: 8px;
+    }
+  }
+}
