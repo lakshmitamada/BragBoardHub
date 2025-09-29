@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../../src/api";
+import { api } from "../api";
 import Navbar from "./Navbar";
 import "../styles/Login.scss";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +12,7 @@ export default function Login() {
 
   const handleLogin = async () => {
   try {
-    const res = await api.post("auth/login", { email, password, role });
+    const res = await api.post("/auth/login", { email, password, role });
     console.log(res.data);
 
     localStorage.setItem("access_token", res.data.access_token);
@@ -35,7 +35,8 @@ export default function Login() {
 
   } catch (err) {
     console.error(err.response?.data || err.message);
-    alert("Login failed.");
+    const serverDetail = err.response?.data?.detail || err.response?.data?.message || err.message;
+    alert(`Login failed: ${serverDetail}`);
   }
 };
 
