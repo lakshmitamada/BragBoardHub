@@ -17,6 +17,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # original default port
+        "http://127.0.0.1:5173",  # localhost IP variant
         "http://localhost:5174",  # added because frontend switched to 5174
         "http://localhost:3000",  # existing allowed origin
     ],
